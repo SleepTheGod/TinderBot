@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tinder Automation</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f7f7f7;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
+      padding: 8px;
+      margin: 5px 0;
+      width: calc(100% - 20px);
+      box-sizing: border-box;
+    }
+    #chat {
+      border: 1px solid #ccc;
+      background: #fff;
+      padding: 10px;
+      height: 300px;
+      overflow-y: scroll;
+      margin-bottom: 10px;
+    }
+    #message {
+      width: 80%;
+    }
+    button {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Tinder Automation</h1>
+
+  <form id="login-form">
+    <input type="text" id="phone_number" placeholder="Phone Number" required />
+    <input type="text" id="otp_code" placeholder="OTP Code" required />
+    <button type="submit">Login</button>
+  </form>
+
+  <h2>Chats</h2>
+  <div id="chat"></div>
+
+  <div>
+    <input type="text" id="message" placeholder="Type a message" />
+    <button id="sendBtn">Send</button>
+  </div>
+
+  <script>
+    const socket = io();
+    let currentUserId = 'user';
+
+    socket.on('new_message', (data) => {
+      $('#chat').append(`<p><b>${data.user_id}</b>: ${data.message}</p>`);
+      $('#chat').scrollTop($('#chat')[0].scrollHeight);
+    });
+
+    $(document).ready(() => {
+      $.get('/chats', (data) => {
+        if (Array.isArray(data)) {
+          data.reverse().forEach(chat => {
+            $('#chat').append(`<p><b>${chat.user_id}</b>: ${chat.message} (${chat.timestamp})</p>`);
+          });
+          $('#chat').scrollTop($('#chat')[0].scrollHeight);
+        }
+      });
+
+      $('#login-form').on('submit', function (e) {
+        e.preventDefault();
+        const phone = $('#phone_number').val().trim();
+        const otp = $('#otp_code').val().trim();
+
+        $.post('/login', { phone_number: phone, otp_code: otp }, (res) => {
+          if (res.status === 'success') {
+            currentUserId = phone;
+            alert("Login successful");
+          } else {
+            alert("Login failed");
+          }
+        });
+      });
+
+      $('#sendBtn').on('click', sendMessage);
+      $('#message').on('keypress', function (e) {
+        if (e.which === 13) sendMessage();
+      });
+    });
+
+    function sendMessage() {
+      const msg = $('#message').val().trim();
+      if (msg) {
+        socket.emit('send_message', {
+          user_id: currentUserId,
+          message: msg
+        });
+        $('#message').val('');
+      }
+    }
+  </script>
+</body>
+</html>
