@@ -1,117 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tinder Automation</title>
-
+  <meta charset="UTF-8">
+  <title>Tinder C2 Dashboard</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f7f7f7;
-    }
-    h1, h2 {
-      color: #333;
-    }
-    form {
-      margin-bottom: 20px;
-    }
-    input[type="text"] {
-      padding: 8px;
-      margin: 5px 0;
-      width: calc(100% - 20px);
-      box-sizing: border-box;
-    }
-    #chat {
-      border: 1px solid #ccc;
-      background: #fff;
-      padding: 10px;
-      height: 300px;
-      overflow-y: scroll;
-      margin-bottom: 10px;
-    }
-    #message {
-      width: 80%;
-    }
-    button {
-      padding: 8px 12px;
-      cursor: pointer;
-    }
+    body { font-family: Arial; background: #111; color: #eee; padding: 20px; }
+    #chat { border: 1px solid #555; padding: 10px; height: 400px; overflow-y: scroll; background: #222; }
+    input, button { padding: 8px; margin-top: 5px; }
+    .outbound { color: #0f0; }
+    .inbound { color: #0af; }
   </style>
 </head>
-
 <body>
-  <h1>Tinder Automation</h1>
+  <h1>Tinder C2 Control Panel</h1>
 
-  <form id="login-form">
-    <input type="text" id="phone_number" placeholder="Phone Number" required />
-    <input type="text" id="otp_code" placeholder="OTP Code" required />
-    <button type="submit">Login</button>
-  </form>
-
-  <h2>Chats</h2>
   <div id="chat"></div>
 
-  <div>
-    <input type="text" id="message" placeholder="Type a message" />
-    <button id="sendBtn">Send</button>
-  </div>
+  <input type="text" id="bot_id" placeholder="Bot ID" />
+  <input type="text" id="user_id" placeholder="User ID" />
+  <input type="text" id="message" placeholder="Command Message" />
+  <button onclick="sendCommand()">Send</button>
 
   <script>
     const socket = io();
-    let currentUserId = 'user';
 
-    socket.on('new_message', (data) => {
-      $('#chat').append(`<p><b>${data.user_id}</b>: ${data.message}</p>`);
-      $('#chat').scrollTop($('#chat')[0].scrollHeight);
+    socket.on('connect', () => {
+      console.log('Connected to C2');
     });
 
-    $(document).ready(() => {
-      $.get('/chats', (data) => {
-        if (Array.isArray(data)) {
-          data.reverse().forEach(chat => {
-            $('#chat').append(`<p><b>${chat.user_id}</b>: ${chat.message} (${chat.timestamp})</p>`);
-          });
-          $('#chat').scrollTop($('#chat')[0].scrollHeight);
-        }
-      });
-
-      $('#login-form').on('submit', function (e) {
-        e.preventDefault();
-        const phone = $('#phone_number').val().trim();
-        const otp = $('#otp_code').val().trim();
-
-        $.post('/login', { phone_number: phone, otp_code: otp }, (res) => {
-          if (res.status === 'success') {
-            currentUserId = phone;
-            alert("Login successful");
-          } else {
-            alert("Login failed");
-          }
-        });
-      });
-
-      $('#sendBtn').on('click', sendMessage);
-      $('#message').on('keypress', function (e) {
-        if (e.which === 13) sendMessage();
-      });
+    socket.on('new_message', data => {
+      $('#chat').append(`<p class="${data.direction}"><b>${data.bot_id}</b> → <i>${data.user_id}</i>: ${data.message}</p>`);
     });
 
-    function sendMessage() {
-      const msg = $('#message').val().trim();
-      if (msg) {
-        socket.emit('send_message', {
-          user_id: currentUserId,
-          message: msg
-        });
-        $('#message').val('');
-      }
+    function sendCommand() {
+      const bot_id = $('#bot_id').val();
+      const user_id = $('#user_id').val();
+      const message = $('#message').val();
+      socket.emit('send_command', { bot_id, user_id, message });
+      $('#message').val('');
     }
+
+    // Load chat history
+    $(document).ready(() => {
+      $.get('/chats', data => {
+        data.reverse().forEach(chat => {
+          $('#chat').append(`<p class="${chat.direction}"><b>${chat.bot_id}</b> → <i>${chat.user_id}</i>: ${chat.message}</p>`);
+        });
+      });
+    });
   </script>
 </body>
 </html>
